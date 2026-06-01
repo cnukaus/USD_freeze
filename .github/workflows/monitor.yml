@@ -38,10 +38,13 @@ jobs:
           RPC_ARBITRUM: ${{ secrets.RPC_ARBITRUM }}
           RPC_OPTIMISM: ${{ secrets.RPC_OPTIMISM }}
           RPC_POLYGON: ${{ secrets.RPC_POLYGON }}
-          EMAIL_API_URL: ${{ secrets.EMAIL_API_URL }}
-          EMAIL_API_KEY: ${{ secrets.EMAIL_API_KEY }}
-          EMAIL_API_AUTH_MODE: ${{ vars.EMAIL_API_AUTH_MODE }}
-          EMAIL_API_AUTH_HEADER: ${{ vars.EMAIL_API_AUTH_HEADER }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT }}
+          SMTP_SECURE: ${{ vars.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
+          SMTP_TO: ${{ secrets.SMTP_TO }}
           POLL_INTERVAL_MS: "0"
           STATE_FILE: ./state.json
 

@@ -14,11 +14,13 @@
     "verify": "tsx src/verify.ts"
   },
   "dependencies": {
+    "nodemailer": "^8.0.10",
     "viem": "^2.21.0"
   },
   "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/nodemailer": "^8.0.0",
     "tsx": "^4.19.0",
-    "typescript": "^5.6.0",
-    "@types/node": "^22.0.0"
+    "typescript": "^5.6.0"
   }
 }
