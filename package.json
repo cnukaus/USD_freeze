@@ -1,0 +1,24 @@
+{
+  "name": "usd-freeze-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Monitor USDC/USDT blacklist (freeze/unfreeze) events across EVM chains and email alerts.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "tick": "tsx src/tick.ts",
+    "latest": "tsx src/latest.ts",
+    "attribute": "tsx src/attribute.ts",
+    "verify": "tsx src/verify.ts"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "@types/node": "^22.0.0"
+  }
+}

@@ -1,0 +1,69 @@
+blacklist(address _account) is the method used to add an address to the USDC blacklist.Key details:Function signature: blacklist(address _account)
+Modifier: Only callable by the designated Blacklister role (currently controlled by Circle).
+It emits a Blacklisted(address) event.
+There is a corresponding unBlacklist(address _account) to remove an address.
+
+Is it called on the proxy or implementation?On the proxy (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48).
+Just like transfer, approve, transferWithAuthorization, etc., admin functions like blacklist are called on the USDC proxy contract.
+
+
+
+
+accountsToBlacklist is a parameter in the initializeV2_2 (or similar upgrade) function on the implementation contract.How it works:This is not a regular function that gets called on an ongoing basis.
+It is part of the one-time initialization when Circle upgraded the USDC contract to FiatTokenV2_2.
+During the upgrade process, the new implementation is set on the proxy, and initializeV2_2(address[] accountsToBlacklist, string newSymbol) (or similar) is called directly on the implementation contract (or through an upgrader contract).
+
+Called on implementation or proxy?It is called on the implementation contr
+
+
+In this specific transaction, the MEV bot (0x5b5a0580bcfd3673820bb249514234afad33e209) is using 0xe99aa0c3 (which is transferWithAuthorization from USDC's EIP-3009 implementation). 
+
+circle.com
+
+What happened in the txThe bot executed a complex multi-swap arbitrage (USDT  USDC on Uniswap V3 pools + small ETH trades).
+It received USDC from a Uniswap pool.
+It then transferred some USDC out (to another address).
+To move USDC efficiently (especially in MEV/searcher flows), the bot called transferWithAuthorization on the USDC proxy (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48). This is a signed, gasless-style transfer that doesn't require a prior on-chain approve.
+
+This is why you see the method call associated with the USDC implementation contract (0x43506849d7c04f9138d1a2050bbf3a0c054402dd).Why it shows on the Implementation contract's pageProxy + delegatecall mechanics:All calls go to the proxy.
+The proxy does delegatecall to the implementation (your linked address).
+The code that runs (including emitting Transfer events and executing transferWithAuthorization) comes from the implementation contract.
+
+Event & method decoding on Etherscan:Etherscan ties logs and decoded calls to the implementation because that's where the function logic and event signatures live.
+Even though the top-level call is to the proxy, the internal execution and specific methods like transferWithAuthorization (or regular transfer/approve) appear under the implementation address.
+
+MEV bots love this:transferWithAuthorization (EIP-3009) lets the bot pull/move USDC with a pre-signed authorization from the owner — no separate approval tx needed.
+This is very common in high-frequency MEV/searcher bots for fast capital movement across many trades. 
+
+eco.com
+
+Summary: The MEV bot isn't directly calling the implementation (proxies usually prevent that). It's calling the USDC proxy, which delegates to the implementation. That's why the method and related events show up on the busy implementation contract page on Etherscan. This is completely normal for upgradeable tokens like USDC.
+
+2 web pages
+
+Explore EIP-3009 authorization mechanics
+
+Investigate Uniswap V3 arbitrage strategies
+
+but why only few events show on USDC implenetation contract ' event. latest one is 2 days ago
+
+Thought for 10s
+
+The USDC implementation contract (0x43506849d7c04f9138d1a2050bbf3a0c054402dd) shows very few events/transactions because almost no one interacts with it directly. Why so few events?It is only the logic library, not the actual token contract.
+All real USDC activity (billions of transfers, approvals, etc.) happens on the proxy contract (0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48).
+The proxy uses delegatecall to run the implementation’s code in the proxy’s own storage context. The implementation contract itself rarely receives direct calls.
+
+Direct transactions to the implementation are limited to:Rare upgrades (Circle changing to a new implementation version).
+Occasional admin/maintenance calls (e.g., Initialize, specific authorization setups, or direct calls from trusted contracts).
+A few mistaken or specialized direct interactions (e.g., some MEV bots or contracts calling it explicitly, though most go through the proxy).
+
+That’s why Etherscan shows only ~140 total transactions ever, with the most recent ones days or weeks old. The proxy, by contrast, has tens of millions of transactions and events. 
+
+etherscan.io
+
+Why do MEV bot calls still appear there?When a bot (or anyone) calls transfer, transferWithAuthorization, approve, etc. on the proxy, Etherscan’s decoder links the executed logic and emitted events back to the implementation because that’s where the function signatures and event definitions live. So you occasionally see MEV-related methods/events surface on the impl page, but only when Etherscan highlights those specific decoded calls.In short: The implementation contract is intentionally “quiet” by design. The real busyness lives on the proxy. This is standard for upgradeable proxy patterns (like Circle’s FiatToken). If you want to see full USDC activity, always look at the proxy address.
+
+1 web page
+
+
+https://etherscan.io/tx/0x1c5d6be66e64f6f96865f55490ea87c8eabb784ec3d7faae83749178c266dd70

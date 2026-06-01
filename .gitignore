@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.env
+# state.json IS tracked — the GitHub Actions cron commits it back to persist the cursor.
+# For local dev, set STATE_FILE=./state.local.json so you don't dirty the tracked file.
+state.local.json
+*.local.json
+*.log
+# cached OFAC SDN list (regenerated from public source)
+data/
