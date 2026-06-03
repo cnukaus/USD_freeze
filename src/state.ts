@@ -1,10 +1,21 @@
 import { readFile, writeFile, rename } from "node:fs/promises";
 
 // Persistent, incremental cursor + dedup memory.
-// Shape: { cursors: { "<chainId>:<token>": lastProcessedBlock }, seen: ["<chainId>:<txHash>:<logIndex>", ...] }
+// Shape: { cursors: { "<chainId>:<token>": lastProcessedBlock }, seen: [...], events: [...] }
 interface StateShape {
   cursors: Record<string, string>; // bigint serialized as string
   seen: string[];
+  events?: StoredEvent[];
+}
+
+export interface StoredEvent {
+  ts: string;        // ISO 8601
+  action: "freeze" | "unfreeze";
+  token: string;
+  chain: string;
+  address: string;
+  txHash: string;
+  label?: string;    // attribution label if available
 }
 
 const SEEN_CAP = 5000; // ring buffer; far larger than one confirmation window
@@ -41,6 +52,7 @@ export class State {
   private cursors = new Map<string, bigint>();
   private seen = new Set<string>();
   private seenOrder: string[] = [];
+  private events: StoredEvent[] = [];
   private dirty = false;
 
   constructor(private readonly backend: StateBackend) {}
@@ -62,6 +74,9 @@ export class State {
     for (const s of parsed.seen ?? []) {
       this.seen.add(s);
       this.seenOrder.push(s);
+    }
+    for (const e of parsed.events ?? []) {
+      this.events.push(e);
     }
   }
 
@@ -90,13 +105,29 @@ export class State {
     this.dirty = true;
   }
 
+  addEvent(e: StoredEvent): void {
+    this.events.push(e);
+    this.dirty = true;
+  }
+
+  recentEvents(maxAgeDays: number): StoredEvent[] {
+    const cutoff = Date.now() - maxAgeDays * 86400_000;
+    return this.events.filter((e) => new Date(e.ts).getTime() >= cutoff);
+  }
+
   async flush(): Promise<void> {
     if (!this.dirty) return;
+    // Prune events to last 30 days and cap at 1000 to keep state.json small.
+    const eventCutoff = Date.now() - 30 * 86400_000;
+    this.events = this.events
+      .filter((e) => new Date(e.ts).getTime() >= eventCutoff)
+      .slice(-1000);
     const shape: StateShape = {
       cursors: Object.fromEntries(
         [...this.cursors].map(([k, v]) => [k, v.toString()]),
       ),
       seen: this.seenOrder,
+      events: this.events,
     };
     await this.backend.write(JSON.stringify(shape, null, 2));
     this.dirty = false;

@@ -11,7 +11,8 @@
     "tick": "tsx src/tick.ts",
     "latest": "tsx src/latest.ts",
     "attribute": "tsx src/attribute.ts",
-    "verify": "tsx src/verify.ts"
+    "verify": "tsx src/verify.ts",
+    "test-alert": "tsx src/test-alert.ts"
   },
   "dependencies": {
     "nodemailer": "^8.0.10",

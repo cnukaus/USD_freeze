@@ -151,14 +151,26 @@ export class ChainWatcher {
 
     let delivered = true;
     if (alertCfg) {
-      delivered = await sendAlert(alert, alertCfg);
+      const history = alertCfg.includeHistory ? this.state.recentEvents(30) : undefined;
+      delivered = await sendAlert(alert, alertCfg, history);
     } else {
       console.log("[alert:console]", JSON.stringify(alert));
     }
 
     // Mark seen only once handled (delivered or logged) so a send failure can retry
     // on the next tick rather than being silently dropped.
-    if (delivered) this.state.markSeen(seenKey);
+    if (delivered) {
+      this.state.markSeen(seenKey);
+      this.state.addEvent({
+        ts: alert.timestamp,
+        action: alert.action,
+        token: alert.token,
+        chain: alert.chain,
+        address: alert.address,
+        txHash: alert.txHash,
+        label: alert.attribution?.label,
+      });
+    }
     return delivered;
   }
 
