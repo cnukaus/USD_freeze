@@ -1,21 +1,20 @@
 name: blacklist-monitor
 
 # Free hosting: GitHub Actions cron. ~5 min cadence (scheduled runs can be delayed under
-# load — fine for the accepted 5-min tolerance). State persists by committing state.json
-# back to the repo, so each run resumes from the saved cursor.
+# load — fine for the accepted 5-min tolerance). State persists via Actions cache so no
+# git commits are needed between runs.
 on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch: {}
 
-# Never run two ticks at once — they'd race on state.json and the push.
+# Never run two ticks at once — they'd race on state.json.
 concurrency:
   group: blacklist-monitor
   cancel-in-progress: false
 
-# Needed to commit the updated state.json back.
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   tick:
@@ -29,6 +28,15 @@ jobs:
           cache: "npm"
 
       - run: npm ci
+
+      # Restore the latest cached state. restore-keys gives a prefix match so the first
+      # run after a cache eviction still gets the most recent saved entry.
+      - name: Restore state cache
+        uses: actions/cache/restore@v4
+        with:
+          path: state.json
+          key: blacklist-monitor-state-${{ github.run_id }}
+          restore-keys: blacklist-monitor-state-
 
       - name: Run one monitor tick
         run: npm run tick
@@ -48,17 +56,11 @@ jobs:
           POLL_INTERVAL_MS: "0"
           STATE_FILE: ./state.json
 
-      # Persist the cursor/seen-set. Commit only if it actually changed.
-      # [skip ci] keeps this commit from triggering other workflows.
-      - name: Commit state
+      # Save updated state to cache. Uses run_id in the key so each run stores a new
+      # entry; restore-keys prefix match above always picks the most recent one.
+      - name: Save state cache
         if: always()
-        run: |
-          if [ -n "$(git status --porcelain state.json)" ]; then
-            git config user.name "blacklist-monitor[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add state.json
-            git commit -m "chore(state): advance cursor [skip ci]"
-            git push
-          else
-            echo "No state change."
-          fi
+        uses: actions/cache/save@v4
+        with:
+          path: state.json
+          key: blacklist-monitor-state-${{ github.run_id }}
